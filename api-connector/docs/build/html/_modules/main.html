@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>main &#8212; My FastAPI Project 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=27fed22d" />
+    <script src="../_static/documentation_options.js?v=8d563738"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for main</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span><span class="p">,</span> <span class="n">HTTPException</span>
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
+<span class="c1">#uvicorn main:app --reload</span>
+
+<span class="c1"># Set up logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
+    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+    <span class="n">handlers</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(),</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="s1">&#39;aws_inventory.log&#39;</span><span class="p">)</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># Create FastAPI app</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;AWS Asset Inventory Connector&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HardwareSpecs">
+<a class="viewcode-back" href="../main.html#main.HardwareSpecs">[docs]</a>
+<span class="k">class</span> <span class="nc">HardwareSpecs</span><span class="p">:</span>
+    <span class="c1">#Hardware specification constants#</span>
+    <span class="c1"># Memory map for EC2 instance types (with more detailed information)</span>
+    <span class="n">INSTANCE_MEMORY</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;t2.micro&quot;</span><span class="p">:</span> <span class="s2">&quot;1 GiB&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;t2.small&quot;</span><span class="p">:</span> <span class="s2">&quot;2 GiB&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;t2.medium&quot;</span><span class="p">:</span> <span class="s2">&quot;4 GiB&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;t2.large&quot;</span><span class="p">:</span> <span class="s2">&quot;8 GiB&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;m5.large&quot;</span><span class="p">:</span> <span class="s2">&quot;8 GiB&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;m5.xlarge&quot;</span><span class="p">:</span> <span class="s2">&quot;16 GiB&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;c5.large&quot;</span><span class="p">:</span> <span class="s2">&quot;4 GiB&quot;</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="AWSClient">
+<a class="viewcode-back" href="../main.html#main.AWSClient">[docs]</a>
+<span class="k">class</span> <span class="nc">AWSClient</span><span class="p">:</span>
+    <span class="c1">#Class to handle AWS client connections and operations#</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing AWSClient&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ec2</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialize_clients</span><span class="p">()</span>
+    
+<div class="viewcode-block" id="AWSClient.initialize_clients">
+<a class="viewcode-back" href="../main.html#main.AWSClient.initialize_clients">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Attempting to initialize AWS EC2 and SSM clients&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ec2</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ec2&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;ssm&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully initialized AWS clients&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to initialize AWS clients: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;AWS configuration error: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+    
+        
+    
+<div class="viewcode-block" id="AWSClient.get_instances">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_instances">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fetching all EC2 instances&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">describe_instances</span><span class="p">()</span>
+            <span class="n">instances</span> <span class="o">=</span> <span class="p">[]</span>
+            
+            <span class="k">for</span> <span class="n">reservation</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">reservation</span><span class="p">[</span><span class="s2">&quot;Instances&quot;</span><span class="p">]:</span>
+                    <span class="n">instances</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="p">[</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;InstanceType&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="p">[</span><span class="s2">&quot;InstanceType&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;State&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="p">[</span><span class="s2">&quot;State&quot;</span><span class="p">][</span><span class="s2">&quot;Name&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;PublicIP&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PublicIpAddress&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">),</span>
+                        <span class="s2">&quot;PrivateIP&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PrivateIpAddress&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">),</span>
+                        <span class="s2">&quot;Platform&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Platform&quot;</span><span class="p">,</span> <span class="s2">&quot;Linux/UNIX&quot;</span><span class="p">),</span>
+                        <span class="s2">&quot;LaunchTime&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LaunchTime&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="k">if</span> <span class="s2">&quot;LaunchTime&quot;</span> <span class="ow">in</span> <span class="n">instance</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="p">})</span>
+            
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Successfully retrieved </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">instances</span><span class="p">)</span><span class="si">}</span><span class="s2"> EC2 instances&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">instances</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get EC2 instances: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+        
+    
+<div class="viewcode-block" id="AWSClient.get_instance_details">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_instance_details">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_instance_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Get detailed information for a specific EC2 instance#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">describe_instances</span><span class="p">(</span><span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">])</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Instances&quot;</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">)</span>
+                
+            <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Instances&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="n">HTTPException</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error getting instance details: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="AWSClient.get_managed_instances">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_managed_instances">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_managed_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="c1">#Get list of SSM managed instance IDs#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">managed_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">describe_instance_information</span><span class="p">()</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">instance</span><span class="p">[</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">managed_instances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;InstanceInformationList&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not get SSM managed instances: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[]</span></div>
+
+    
+<div class="viewcode-block" id="AWSClient.get_disk_size">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_disk_size">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_disk_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="c1">#Get total disk size for an instance#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get block device mappings</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">describe_instances</span><span class="p">(</span><span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">])</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Instances&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="s2">&quot;N/A&quot;</span>
+                
+            <span class="n">instance</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Reservations&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Instances&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            
+            <span class="c1"># Get volume IDs</span>
+            <span class="n">volume_ids</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">instance</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BlockDeviceMappings&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+                <span class="k">if</span> <span class="s2">&quot;Ebs&quot;</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                    <span class="n">volume_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">device</span><span class="p">[</span><span class="s2">&quot;Ebs&quot;</span><span class="p">][</span><span class="s2">&quot;VolumeId&quot;</span><span class="p">])</span>
+            
+            <span class="c1"># Get volume sizes</span>
+            <span class="n">total_size</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">volume_id</span> <span class="ow">in</span> <span class="n">volume_ids</span><span class="p">:</span>
+                <span class="n">volume</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">describe_volumes</span><span class="p">(</span><span class="n">VolumeIds</span><span class="o">=</span><span class="p">[</span><span class="n">volume_id</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">volume</span> <span class="ow">and</span> <span class="s2">&quot;Volumes&quot;</span> <span class="ow">in</span> <span class="n">volume</span> <span class="ow">and</span> <span class="n">volume</span><span class="p">[</span><span class="s2">&quot;Volumes&quot;</span><span class="p">]:</span>
+                    <span class="n">total_size</span> <span class="o">+=</span> <span class="n">volume</span><span class="p">[</span><span class="s2">&quot;Volumes&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Size&quot;</span><span class="p">]</span>
+            
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">total_size</span><span class="si">}</span><span class="s2"> GB&quot;</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not get disk size for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s2">&quot;N/A&quot;</span></div>
+
+    
+<div class="viewcode-block" id="AWSClient.get_instance_hostname">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_instance_hostname">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_instance_hostname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="c1">#Get hostname using SSM command execution#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># For Windows instances</span>
+            <span class="n">windows_command</span> <span class="o">=</span> <span class="s2">&quot;hostname&quot;</span>
+            <span class="c1"># For Linux instances</span>
+            <span class="n">linux_command</span> <span class="o">=</span> <span class="s2">&quot;hostname&quot;</span>
+            
+            <span class="c1"># Try Windows command first</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span>
+                <span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">],</span>
+                <span class="n">DocumentName</span><span class="o">=</span><span class="s2">&quot;AWS-RunPowerShellScript&quot;</span><span class="p">,</span>
+                <span class="n">Parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;commands&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">windows_command</span><span class="p">]}</span>
+            <span class="p">)</span>
+            
+            <span class="n">command_id</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Command&quot;</span><span class="p">][</span><span class="s2">&quot;CommandId&quot;</span><span class="p">]</span>
+            
+            <span class="c1"># Wait for command to complete</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            
+            <span class="c1"># Get command output</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">(</span>
+                <span class="n">CommandId</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span>
+                <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span>
+            <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Success&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            
+            <span class="c1"># If Windows command fails, try Linux command</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span>
+                <span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">],</span>
+                <span class="n">DocumentName</span><span class="o">=</span><span class="s2">&quot;AWS-RunShellScript&quot;</span><span class="p">,</span>
+                <span class="n">Parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;commands&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">linux_command</span><span class="p">]}</span>
+            <span class="p">)</span>
+            
+            <span class="n">command_id</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Command&quot;</span><span class="p">][</span><span class="s2">&quot;CommandId&quot;</span><span class="p">]</span>
+            
+            <span class="c1"># Wait for command to complete</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            
+            <span class="c1"># Get command output</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">(</span>
+                <span class="n">CommandId</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span>
+                <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span>
+            <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Success&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            
+            <span class="k">return</span> <span class="s2">&quot;N/A&quot;</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not get hostname for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s2">&quot;N/A&quot;</span></div>
+
+    
+<div class="viewcode-block" id="AWSClient.get_instance_serial">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_instance_serial">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_instance_serial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="c1">#Get instance serial number/system UUID#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Windows command to get serial number</span>
+            <span class="n">windows_command</span> <span class="o">=</span> <span class="s2">&quot;(Get-WmiObject -Class Win32_ComputerSystemProduct).UUID&quot;</span>
+            <span class="c1"># Linux command to get system UUID</span>
+            <span class="n">linux_command</span> <span class="o">=</span> <span class="s2">&quot;cat /sys/class/dmi/id/product_uuid || dmidecode -s system-uuid || echo N/A&quot;</span>
+            
+            <span class="c1"># Try Windows command first</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span>
+                <span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">],</span>
+                <span class="n">DocumentName</span><span class="o">=</span><span class="s2">&quot;AWS-RunPowerShellScript&quot;</span><span class="p">,</span>
+                <span class="n">Parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;commands&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">windows_command</span><span class="p">]}</span>
+            <span class="p">)</span>
+            
+            <span class="n">command_id</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Command&quot;</span><span class="p">][</span><span class="s2">&quot;CommandId&quot;</span><span class="p">]</span>
+            
+            <span class="c1"># Wait for command to complete</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            
+            <span class="c1"># Get command output</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">(</span>
+                <span class="n">CommandId</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span>
+                <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span>
+            <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Success&quot;</span> <span class="ow">and</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            
+            <span class="c1"># If Windows command fails, try Linux command</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span>
+                <span class="n">InstanceIds</span><span class="o">=</span><span class="p">[</span><span class="n">instance_id</span><span class="p">],</span>
+                <span class="n">DocumentName</span><span class="o">=</span><span class="s2">&quot;AWS-RunShellScript&quot;</span><span class="p">,</span>
+                <span class="n">Parameters</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;commands&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">linux_command</span><span class="p">]}</span>
+            <span class="p">)</span>
+            
+            <span class="n">command_id</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;Command&quot;</span><span class="p">][</span><span class="s2">&quot;CommandId&quot;</span><span class="p">]</span>
+            
+            <span class="c1"># Wait for command to complete</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            
+            <span class="c1"># Get command output</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">get_command_invocation</span><span class="p">(</span>
+                <span class="n">CommandId</span><span class="o">=</span><span class="n">command_id</span><span class="p">,</span>
+                <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span>
+            <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Success&quot;</span> <span class="ow">and</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;StandardOutputContent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            
+            <span class="c1"># If both fail, use instance ID as fallback</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;i-</span><span class="si">{</span><span class="n">instance_id</span><span class="p">[</span><span class="o">-</span><span class="mi">8</span><span class="p">:]</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># Use last 8 chars of instance ID</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not get serial for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;i-</span><span class="si">{</span><span class="n">instance_id</span><span class="p">[</span><span class="o">-</span><span class="mi">8</span><span class="p">:]</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># Fallback</span></div>
+
+    
+<div class="viewcode-block" id="AWSClient.get_software_inventory">
+<a class="viewcode-back" href="../main.html#main.AWSClient.get_software_inventory">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_software_inventory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Get software inventory for an instance#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get software inventory from SSM</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssm</span><span class="o">.</span><span class="n">list_inventory_entries</span><span class="p">(</span>
+                <span class="n">InstanceId</span><span class="o">=</span><span class="n">instance_id</span><span class="p">,</span>
+                <span class="n">TypeName</span><span class="o">=</span><span class="s2">&quot;AWS:Application&quot;</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Entries&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not get software inventory for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InstanceData">
+<a class="viewcode-back" href="../main.html#main.InstanceData">[docs]</a>
+<span class="k">class</span> <span class="nc">InstanceData</span><span class="p">:</span>
+    <span class="c1">#Class representing EC2 instance data#</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_type</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s2">&quot;InstanceType&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s2">&quot;State&quot;</span><span class="p">][</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">public_ip</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PublicIpAddress&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">private_ip</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PrivateIpAddress&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">platform</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Platform&quot;</span><span class="p">,</span> <span class="s2">&quot;Linux/UNIX&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">launch_time</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LaunchTime&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vpc_id</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;VpcId&quot;</span><span class="p">,</span> <span class="s2">&quot;N/A&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cpu_cores</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s2">&quot;CpuOptions&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CoreCount&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threads_per_core</span> <span class="o">=</span> <span class="n">instance_data</span><span class="p">[</span><span class="s2">&quot;CpuOptions&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ThreadsPerCore&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_vcpus</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cpu_cores</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">threads_per_core</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">security_groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">sg</span><span class="p">[</span><span class="s2">&quot;GroupName&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">sg</span> <span class="ow">in</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SecurityGroups&quot;</span><span class="p">,</span> <span class="p">[])]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block_devices</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;BlockDeviceMappings&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tags</span> <span class="o">=</span> <span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Tags&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_name_from_tags</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="n">HardwareSpecs</span><span class="o">.</span><span class="n">INSTANCE_MEMORY</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instance_type</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">_get_name_from_tags</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="c1">#Extract Name tag from instance tags#</span>
+        <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tag</span><span class="p">[</span><span class="s2">&quot;Key&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Name&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">tag</span><span class="p">[</span><span class="s2">&quot;Value&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="s2">&quot;N/A&quot;</span>
+    
+<div class="viewcode-block" id="InstanceData.to_dict">
+<a class="viewcode-back" href="../main.html#main.InstanceData.to_dict">[docs]</a>
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Convert instance data to dictionary#</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span><span class="p">,</span>
+            <span class="s2">&quot;InstanceType&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_type</span><span class="p">,</span>
+            <span class="s2">&quot;State&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span>
+            <span class="s2">&quot;PublicIP&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">public_ip</span><span class="p">,</span>
+            <span class="s2">&quot;PrivateIP&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">private_ip</span><span class="p">,</span>
+            <span class="s2">&quot;Platform&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">platform</span><span class="p">,</span>
+            <span class="s2">&quot;LaunchTime&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_time</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_time</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="HardwareService">
+<a class="viewcode-back" href="../main.html#main.HardwareService">[docs]</a>
+<span class="k">class</span> <span class="nc">HardwareService</span><span class="p">:</span>
+    <span class="c1">#Service class for hardware operations#</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aws_client</span><span class="p">:</span> <span class="n">AWSClient</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing HardwareService&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span> <span class="o">=</span> <span class="n">aws_client</span>
+        
+    
+<div class="viewcode-block" id="HardwareService.get_hardware_info">
+<a class="viewcode-back" href="../main.html#main.HardwareService.get_hardware_info">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_hardware_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Fetching hardware information for instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1">#Get hardware information for an instance#</span>
+        <span class="c1"># Get instance details</span>
+        <span class="n">instance_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_details</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+        <span class="n">instance</span> <span class="o">=</span> <span class="n">InstanceData</span><span class="p">(</span><span class="n">instance_data</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing storage devices for instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Get storage devices and total size</span>
+        <span class="n">storage_devices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">total_storage_gb</span> <span class="o">=</span> <span class="mi">0</span>
+        
+        <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">instance</span><span class="o">.</span><span class="n">block_devices</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;Ebs&quot;</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                <span class="n">volume_id</span> <span class="o">=</span> <span class="n">device</span><span class="p">[</span><span class="s2">&quot;Ebs&quot;</span><span class="p">][</span><span class="s2">&quot;VolumeId&quot;</span><span class="p">]</span>
+                <span class="n">volume</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">describe_volumes</span><span class="p">(</span><span class="n">VolumeIds</span><span class="o">=</span><span class="p">[</span><span class="n">volume_id</span><span class="p">])</span>
+                
+                <span class="k">if</span> <span class="n">volume</span> <span class="ow">and</span> <span class="s2">&quot;Volumes&quot;</span> <span class="ow">in</span> <span class="n">volume</span> <span class="ow">and</span> <span class="n">volume</span><span class="p">[</span><span class="s2">&quot;Volumes&quot;</span><span class="p">]:</span>
+                    <span class="n">volume_size</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="s2">&quot;Volumes&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Size&quot;</span><span class="p">]</span>
+                    <span class="n">total_storage_gb</span> <span class="o">+=</span> <span class="n">volume_size</span>
+                    
+                    <span class="n">storage_devices</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s2">&quot;DeviceName&quot;</span><span class="p">:</span> <span class="n">device</span><span class="p">[</span><span class="s2">&quot;DeviceName&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;VolumeId&quot;</span><span class="p">:</span> <span class="n">volume_id</span><span class="p">,</span>
+                        <span class="s2">&quot;SizeGB&quot;</span><span class="p">:</span> <span class="n">volume_size</span>
+                    <span class="p">})</span>
+        
+        <span class="c1"># Get hostname from instance tags or SSM</span>
+        <span class="n">hostname</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">name</span>  <span class="c1"># Default to instance name</span>
+        
+        <span class="c1"># Check if instance is managed by SSM</span>
+        <span class="n">managed_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_managed_instances</span><span class="p">()</span>
+        
+        <span class="c1"># If managed by SSM, try to get hostname and serial</span>
+        <span class="n">serial_number</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;i-</span><span class="si">{</span><span class="n">instance_id</span><span class="p">[</span><span class="o">-</span><span class="mi">8</span><span class="p">:]</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># Default</span>
+        <span class="k">if</span> <span class="n">instance_id</span> <span class="ow">in</span> <span class="n">managed_instances</span><span class="p">:</span>
+            <span class="c1"># Get hostname</span>
+            <span class="n">ssm_hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_hostname</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ssm_hostname</span> <span class="o">!=</span> <span class="s2">&quot;N/A&quot;</span><span class="p">:</span>
+                <span class="n">hostname</span> <span class="o">=</span> <span class="n">ssm_hostname</span>
+            
+            <span class="c1"># Get serial number</span>
+            <span class="n">ssm_serial</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_serial</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ssm_serial</span> <span class="o">!=</span> <span class="s2">&quot;N/A&quot;</span><span class="p">:</span>
+                <span class="n">serial_number</span> <span class="o">=</span> <span class="n">ssm_serial</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+            <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">,</span>
+            <span class="s2">&quot;HostType&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">instance_type</span><span class="p">,</span>
+            <span class="s2">&quot;SerialNumber&quot;</span><span class="p">:</span> <span class="n">serial_number</span><span class="p">,</span>
+            <span class="s2">&quot;CPU&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;Cores&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">cpu_cores</span><span class="p">,</span>
+                <span class="s2">&quot;ThreadsPerCore&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">threads_per_core</span><span class="p">,</span>
+                <span class="s2">&quot;TotalvCPUs&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">total_vcpus</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;Memory&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">memory</span><span class="p">,</span>
+            <span class="s2">&quot;Storage&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;Devices&quot;</span><span class="p">:</span> <span class="n">storage_devices</span><span class="p">,</span>
+                <span class="s2">&quot;TotalSizeGB&quot;</span><span class="p">:</span> <span class="n">total_storage_gb</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;NetworkInterfaces&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">instance_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;NetworkInterfaces&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+            <span class="s2">&quot;SecurityGroups&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">security_groups</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="HardwareService.export_hardware_data">
+<a class="viewcode-back" href="../main.html#main.HardwareService.export_hardware_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_hardware_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Export hardware information for all instances#</span>
+        <span class="n">instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instances</span><span class="p">()</span>
+        <span class="n">managed_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_managed_instances</span><span class="p">()</span>
+        <span class="n">hardware_data</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">for</span> <span class="n">instance_info</span> <span class="ow">in</span> <span class="n">instances</span><span class="p">:</span>
+            <span class="n">instance_id</span> <span class="o">=</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+            
+            <span class="c1"># Get instance details</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">instance_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_details</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                <span class="n">instance</span> <span class="o">=</span> <span class="n">InstanceData</span><span class="p">(</span><span class="n">instance_data</span><span class="p">)</span>
+                
+                <span class="c1"># Get disk size</span>
+                <span class="n">total_disk_size</span> <span class="o">=</span> <span class="s2">&quot;N/A&quot;</span>
+                <span class="n">volume_ids</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">device</span> <span class="ow">in</span> <span class="n">instance</span><span class="o">.</span><span class="n">block_devices</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s2">&quot;Ebs&quot;</span> <span class="ow">in</span> <span class="n">device</span><span class="p">:</span>
+                        <span class="n">volume_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">device</span><span class="p">[</span><span class="s2">&quot;Ebs&quot;</span><span class="p">][</span><span class="s2">&quot;VolumeId&quot;</span><span class="p">])</span>
+                
+                <span class="n">total_size</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">volume_id</span> <span class="ow">in</span> <span class="n">volume_ids</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">volume</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">ec2</span><span class="o">.</span><span class="n">describe_volumes</span><span class="p">(</span><span class="n">VolumeIds</span><span class="o">=</span><span class="p">[</span><span class="n">volume_id</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="n">volume</span> <span class="ow">and</span> <span class="s2">&quot;Volumes&quot;</span> <span class="ow">in</span> <span class="n">volume</span> <span class="ow">and</span> <span class="n">volume</span><span class="p">[</span><span class="s2">&quot;Volumes&quot;</span><span class="p">]:</span>
+                            <span class="n">total_size</span> <span class="o">+=</span> <span class="n">volume</span><span class="p">[</span><span class="s2">&quot;Volumes&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;Size&quot;</span><span class="p">]</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not get volume size for </span><span class="si">{</span><span class="n">volume_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">total_size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">total_disk_size</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">total_size</span><span class="si">}</span><span class="s2"> GB&quot;</span>
+                
+                <span class="c1"># Get hostname and serial number</span>
+                <span class="n">hostname</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">name</span>
+                <span class="n">serial_number</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;i-</span><span class="si">{</span><span class="n">instance_id</span><span class="p">[</span><span class="o">-</span><span class="mi">8</span><span class="p">:]</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># Default</span>
+                
+                <span class="k">if</span> <span class="n">instance_id</span> <span class="ow">in</span> <span class="n">managed_instances</span><span class="p">:</span>
+                    <span class="c1"># Get hostname</span>
+                    <span class="n">ssm_hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_hostname</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">ssm_hostname</span> <span class="o">!=</span> <span class="s2">&quot;N/A&quot;</span><span class="p">:</span>
+                        <span class="n">hostname</span> <span class="o">=</span> <span class="n">ssm_hostname</span>
+                    
+                    <span class="c1"># Get serial number</span>
+                    <span class="n">ssm_serial</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_serial</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">ssm_serial</span> <span class="o">!=</span> <span class="s2">&quot;N/A&quot;</span><span class="p">:</span>
+                        <span class="n">serial_number</span> <span class="o">=</span> <span class="n">ssm_serial</span>
+                
+                <span class="n">hardware_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">,</span>
+                    <span class="s2">&quot;HostType&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">instance_type</span><span class="p">,</span>
+                    <span class="s2">&quot;SerialNumber&quot;</span><span class="p">:</span> <span class="n">serial_number</span><span class="p">,</span>
+                    <span class="s2">&quot;State&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span><span class="p">,</span>
+                    <span class="s2">&quot;CPUCores&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">cpu_cores</span><span class="p">,</span>
+                    <span class="s2">&quot;ThreadsPerCore&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">threads_per_core</span><span class="p">,</span>
+                    <span class="s2">&quot;TotalVCPUs&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">total_vcpus</span><span class="p">,</span>
+                    <span class="s2">&quot;RAM&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">memory</span><span class="p">,</span>
+                    <span class="s2">&quot;HardDiskSize&quot;</span><span class="p">:</span> <span class="n">total_disk_size</span><span class="p">,</span>
+                    <span class="s2">&quot;PublicIP&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">public_ip</span><span class="p">,</span>
+                    <span class="s2">&quot;PrivateIP&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">private_ip</span><span class="p">,</span>
+                    <span class="s2">&quot;VPC&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">vpc_id</span><span class="p">,</span>
+                    <span class="s2">&quot;Platform&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">platform</span><span class="p">,</span>
+                <span class="p">})</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error processing hardware data for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Create filename with timestamp</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">_%H%M%S&quot;</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;aws_hardware_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.csv&quot;</span>
+        
+        <span class="c1"># Create CSV</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">hardware_data</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Hardware data exported to </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;records&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">hardware_data</span><span class="p">),</span>
+            <span class="s2">&quot;file_path&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SoftwareService">
+<a class="viewcode-back" href="../main.html#main.SoftwareService">[docs]</a>
+<span class="k">class</span> <span class="nc">SoftwareService</span><span class="p">:</span>
+    <span class="c1">#Service class for software operations#</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aws_client</span><span class="p">:</span> <span class="n">AWSClient</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing SoftwareService&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span> <span class="o">=</span> <span class="n">aws_client</span>
+    
+<div class="viewcode-block" id="SoftwareService.get_software_info">
+<a class="viewcode-back" href="../main.html#main.SoftwareService.get_software_info">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_software_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Get software information for an instance#</span>
+        <span class="c1"># Check if instance is managed by SSM</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Fetching software information for instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">managed_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_managed_instances</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="n">instance_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">managed_instances</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2"> is not managed by SSM&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;instance_id&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;Not managed by SSM&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;This instance does not have SSM Agent installed&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;software&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">}</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get software inventory</span>
+            <span class="n">software_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_software_inventory</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+            
+            <span class="c1"># Format software data</span>
+            <span class="n">formatted_software</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">software_list</span><span class="p">:</span>
+                <span class="n">formatted_software</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;Version&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Version&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;Publisher&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Publisher&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;InstalledTime&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;InstalledTime&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                <span class="p">})</span>
+                
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;instance_id&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;Success&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;software_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">formatted_software</span><span class="p">),</span>
+                <span class="s2">&quot;software&quot;</span><span class="p">:</span> <span class="n">formatted_software</span>
+            <span class="p">}</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">error_msg</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;InvalidInstanceId&quot;</span> <span class="ow">in</span> <span class="n">error_msg</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;instance_id&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;Instance not found or not configured with SSM&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;software&quot;</span><span class="p">:</span> <span class="p">[]</span>
+                <span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error getting software: </span><span class="si">{</span><span class="n">error_msg</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;instance_id&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;Error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="n">error_msg</span><span class="p">,</span>
+                    <span class="s2">&quot;software&quot;</span><span class="p">:</span> <span class="p">[]</span>
+                <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="SoftwareService.export_software_data">
+<a class="viewcode-back" href="../main.html#main.SoftwareService.export_software_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_software_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Export software information for all instances#</span>
+        <span class="c1"># Get instance details</span>
+        <span class="n">instance_data_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instances</span><span class="p">()</span>
+        
+        <span class="k">for</span> <span class="n">instance_info</span> <span class="ow">in</span> <span class="n">instances</span><span class="p">:</span>
+            <span class="n">instance_id</span> <span class="o">=</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">instance_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_details</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                <span class="n">instance</span> <span class="o">=</span> <span class="n">InstanceData</span><span class="p">(</span><span class="n">instance_data</span><span class="p">)</span>
+                
+                <span class="n">hostname</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">name</span>
+                <span class="c1"># Try to get hostname from SSM if possible</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">ssm_hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instance_hostname</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">ssm_hostname</span> <span class="o">!=</span> <span class="s2">&quot;N/A&quot;</span><span class="p">:</span>
+                        <span class="n">hostname</span> <span class="o">=</span> <span class="n">ssm_hostname</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                
+                <span class="n">instance_data_map</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="n">hostname</span><span class="p">,</span>
+                    <span class="s2">&quot;InstanceType&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">instance_type</span><span class="p">,</span>
+                    <span class="s2">&quot;State&quot;</span><span class="p">:</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span>
+                <span class="p">}</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error getting instance details for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">instance_data_map</span><span class="p">[</span><span class="n">instance_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;InstanceType&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;State&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span>
+                <span class="p">}</span>
+        
+        <span class="c1"># Get SSM managed instances</span>
+        <span class="n">managed_instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_managed_instances</span><span class="p">()</span>
+        <span class="n">software_data</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="c1"># For each SSM managed instance, get software</span>
+        <span class="k">for</span> <span class="n">instance_id</span> <span class="ow">in</span> <span class="n">managed_instances</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Get instance info</span>
+                <span class="n">instance_info</span> <span class="o">=</span> <span class="n">instance_data_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">instance_id</span><span class="p">,</span> <span class="p">{</span>
+                    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;InstanceType&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;State&quot;</span><span class="p">:</span> <span class="s2">&quot;Unknown&quot;</span>
+                <span class="p">})</span>
+                
+                <span class="c1"># Get software inventory</span>
+                <span class="n">apps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_software_inventory</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span>
+                
+                <span class="c1"># Add each application as a row</span>
+                <span class="k">if</span> <span class="n">apps</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">apps</span><span class="p">:</span>
+                        <span class="n">software_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                            <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                            <span class="s2">&quot;InstanceName&quot;</span><span class="p">:</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">],</span>
+                            <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;HostName&quot;</span><span class="p">],</span>
+                            <span class="s2">&quot;HostType&quot;</span><span class="p">:</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;InstanceType&quot;</span><span class="p">],</span>
+                            <span class="s2">&quot;ApplicationName&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                            <span class="s2">&quot;Version&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Version&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                            <span class="s2">&quot;Publisher&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Publisher&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                            <span class="s2">&quot;InstalledTime&quot;</span><span class="p">:</span> <span class="n">app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;InstalledTime&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">),</span>
+                        <span class="p">})</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># No applications found</span>
+                    <span class="n">software_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+                        <span class="s2">&quot;InstanceName&quot;</span><span class="p">:</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;HostName&quot;</span><span class="p">:</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;HostName&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;HostType&quot;</span><span class="p">:</span> <span class="n">instance_info</span><span class="p">[</span><span class="s2">&quot;InstanceType&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;ApplicationName&quot;</span><span class="p">:</span> <span class="s2">&quot;No applications found&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;Version&quot;</span><span class="p">:</span> <span class="s2">&quot;N/A&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;Publisher&quot;</span><span class="p">:</span> <span class="s2">&quot;N/A&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;InstalledTime&quot;</span><span class="p">:</span> <span class="s2">&quot;N/A&quot;</span><span class="p">,</span>
+                    <span class="p">})</span>
+            
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error getting software for </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Create filename with timestamp</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">_%H%M%S&quot;</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;aws_software_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.csv&quot;</span>
+        
+        <span class="c1"># Create CSV</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">software_data</span><span class="p">)</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Software data exported to </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;records&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">software_data</span><span class="p">),</span>
+            <span class="s2">&quot;ssm_managed_instances&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">managed_instances</span><span class="p">),</span>
+            <span class="s2">&quot;file_path&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AssetInventoryService">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService">[docs]</a>
+<span class="k">class</span> <span class="nc">AssetInventoryService</span><span class="p">:</span>
+    <span class="c1">#Main service class for the asset inventory application#</span>
+    
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span> <span class="o">=</span> <span class="n">AWSClient</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hardware_service</span> <span class="o">=</span> <span class="n">HardwareService</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">software_service</span> <span class="o">=</span> <span class="n">SoftwareService</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="AssetInventoryService.get_instances">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService.get_instances">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Get all EC2 instances#</span>
+        <span class="n">instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aws_client</span><span class="o">.</span><span class="n">get_instances</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;instances&quot;</span><span class="p">:</span> <span class="n">instances</span><span class="p">,</span> <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">instances</span><span class="p">)}</span></div>
+
+    
+<div class="viewcode-block" id="AssetInventoryService.get_hardware_info">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService.get_hardware_info">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_hardware_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Get hardware information for an instance#</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hardware_service</span><span class="o">.</span><span class="n">get_hardware_info</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="AssetInventoryService.get_software_info">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService.get_software_info">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_software_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Get software information for an instance#</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">software_service</span><span class="o">.</span><span class="n">get_software_info</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="AssetInventoryService.export_hardware_data">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService.export_hardware_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_hardware_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Export hardware information for all instances#</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hardware_service</span><span class="o">.</span><span class="n">export_hardware_data</span><span class="p">()</span></div>
+
+    
+<div class="viewcode-block" id="AssetInventoryService.export_software_data">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService.export_software_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_software_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Export software information for all instances#</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">software_service</span><span class="o">.</span><span class="n">export_software_data</span><span class="p">()</span></div>
+
+    
+<div class="viewcode-block" id="AssetInventoryService.export_all_data">
+<a class="viewcode-back" href="../main.html#main.AssetInventoryService.export_all_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_all_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="c1">#Export both hardware and software data#</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Export hardware</span>
+            <span class="n">hardware_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">export_hardware_data</span><span class="p">()</span>
+            
+            <span class="c1"># Export software</span>
+            <span class="n">software_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">export_software_data</span><span class="p">()</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;All inventory data exported successfully&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;hardware_file&quot;</span><span class="p">:</span> <span class="n">hardware_result</span><span class="p">[</span><span class="s2">&quot;file_path&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;hardware_records&quot;</span><span class="p">:</span> <span class="n">hardware_result</span><span class="p">[</span><span class="s2">&quot;records&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;software_file&quot;</span><span class="p">:</span> <span class="n">software_result</span><span class="p">[</span><span class="s2">&quot;file_path&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;software_records&quot;</span><span class="p">:</span> <span class="n">software_result</span><span class="p">[</span><span class="s2">&quot;records&quot;</span><span class="p">],</span>
+            <span class="p">}</span>
+        
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error exporting all data: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+</div>
+
+
+
+<span class="c1"># Initialize the service</span>
+<span class="n">asset_inventory_service</span> <span class="o">=</span> <span class="n">AssetInventoryService</span><span class="p">()</span>
+
+<span class="c1"># API Routes</span>
+<div class="viewcode-block" id="home">
+<a class="viewcode-back" href="../main.html#main.home">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">home</span><span class="p">():</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Home endpoint accessed&quot;</span><span class="p">)</span>
+    <span class="c1">#Homepage with API information#</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;AWS Asset Inventory Connector&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;endpoints&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="s2">&quot;/instances&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;/hardware/</span><span class="si">{instance_id}</span><span class="s2">&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;/software/</span><span class="si">{instance_id}</span><span class="s2">&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;/export_hardware&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;/export_software&quot;</span><span class="p">,</span> 
+            <span class="s2">&quot;/export_all&quot;</span>
+        <span class="p">]</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_instances">
+<a class="viewcode-back" href="../main.html#main.get_instances">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/instances&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_instances</span><span class="p">():</span>
+    <span class="c1">#List of all EC2 instances#</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Handling request to get all instances&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">asset_inventory_service</span><span class="o">.</span><span class="n">get_instances</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="get_hardware">
+<a class="viewcode-back" href="../main.html#main.get_hardware">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/hardware/</span><span class="si">{instance_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_hardware</span><span class="p">(</span><span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="c1">#Hardware details for a specific EC2 instance</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Handling request to get hardware for instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">asset_inventory_service</span><span class="o">.</span><span class="n">get_hardware_info</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_software">
+<a class="viewcode-back" href="../main.html#main.get_software">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/software/</span><span class="si">{instance_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_software</span><span class="p">(</span><span class="n">instance_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="c1">#Software details for a specific EC2 instance</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Handling request to get software for instance </span><span class="si">{</span><span class="n">instance_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">asset_inventory_service</span><span class="o">.</span><span class="n">get_software_info</span><span class="p">(</span><span class="n">instance_id</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="export_hardware_to_csv">
+<a class="viewcode-back" href="../main.html#main.export_hardware_to_csv">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/export_hardware&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">export_hardware_to_csv</span><span class="p">():</span>
+    <span class="c1">#Export hardware information to CSV</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Handling request to export hardware data&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">asset_inventory_service</span><span class="o">.</span><span class="n">export_hardware_data</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="export_software_to_csv">
+<a class="viewcode-back" href="../main.html#main.export_software_to_csv">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/export_software&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">export_software_to_csv</span><span class="p">():</span>
+    <span class="c1">#Export software information to CSV</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Handling request to export software data&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">asset_inventory_service</span><span class="o">.</span><span class="n">export_software_data</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="export_all_to_csv">
+<a class="viewcode-back" href="../main.html#main.export_all_to_csv">[docs]</a>
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/export_all&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">export_all_to_csv</span><span class="p">():</span>
+    <span class="c1">#Export both hardware and software to CSV</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Handling request to export all data&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">asset_inventory_service</span><span class="o">.</span><span class="n">export_all_data</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">uvicorn</span>
+    <span class="n">uvicorn</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8000</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">My FastAPI Project</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">api-connector</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Saylee Mangalmurti.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

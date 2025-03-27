@@ -1,0 +1,144 @@
+2025-03-27 13:56:36,418 - main - INFO - Initializing AWSClient
+2025-03-27 13:56:36,418 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:56:36,439 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:56:36,701 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:56:36,701 - main - INFO - Initializing HardwareService
+2025-03-27 13:56:36,701 - main - INFO - Initializing SoftwareService
+2025-03-27 13:56:38,966 - main - INFO - Initializing AWSClient
+2025-03-27 13:56:38,966 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:56:38,988 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:56:39,251 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:56:39,252 - main - INFO - Initializing HardwareService
+2025-03-27 13:56:39,252 - main - INFO - Initializing SoftwareService
+2025-03-27 13:56:41,226 - main - INFO - Initializing AWSClient
+2025-03-27 13:56:41,226 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:56:41,244 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:56:41,449 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:56:41,449 - main - INFO - Initializing HardwareService
+2025-03-27 13:56:41,449 - main - INFO - Initializing SoftwareService
+2025-03-27 13:56:50,897 - main - INFO - Initializing AWSClient
+2025-03-27 13:56:50,898 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:56:50,914 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:56:51,122 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:56:51,122 - main - INFO - Initializing HardwareService
+2025-03-27 13:56:51,122 - main - INFO - Initializing SoftwareService
+2025-03-27 13:56:53,077 - main - INFO - Initializing AWSClient
+2025-03-27 13:56:53,077 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:56:53,098 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:56:53,342 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:56:53,342 - main - INFO - Initializing HardwareService
+2025-03-27 13:56:53,342 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:02,405 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:02,406 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:02,423 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:02,625 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:02,625 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:02,625 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:06,196 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:06,196 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:06,219 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:06,428 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:06,428 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:06,428 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:11,525 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:11,525 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:11,543 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:11,747 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:11,747 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:11,747 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:15,998 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:15,998 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:16,019 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:16,219 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:16,219 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:16,219 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:18,541 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:18,541 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:18,561 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:18,790 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:18,790 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:18,790 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:21,069 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:21,069 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:21,087 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:21,318 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:21,319 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:21,319 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:23,343 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:23,343 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:23,362 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:23,623 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:23,624 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:23,625 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:25,597 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:25,597 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:25,615 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:25,832 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:25,832 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:25,833 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:32,593 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:32,593 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:32,613 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:32,807 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:32,807 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:32,808 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:39,135 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:39,135 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:39,152 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:39,357 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:39,357 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:39,357 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:41,510 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:41,511 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:41,528 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:41,792 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:41,792 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:41,792 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:44,024 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:44,024 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:44,045 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:44,349 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:44,349 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:44,349 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:50,219 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:50,219 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:50,237 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:50,444 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:50,444 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:50,444 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:54,997 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:54,997 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:55,014 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:55,249 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:55,249 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:55,249 - main - INFO - Initializing SoftwareService
+2025-03-27 13:57:57,891 - main - INFO - Initializing AWSClient
+2025-03-27 13:57:57,909 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:57:57,935 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:57:58,170 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:57:58,170 - main - INFO - Initializing HardwareService
+2025-03-27 13:57:58,170 - main - INFO - Initializing SoftwareService
+2025-03-27 13:58:00,274 - main - INFO - Initializing AWSClient
+2025-03-27 13:58:00,274 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:58:00,291 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:58:00,481 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:58:00,482 - main - INFO - Initializing HardwareService
+2025-03-27 13:58:00,482 - main - INFO - Initializing SoftwareService
+2025-03-27 13:58:02,576 - main - INFO - Initializing AWSClient
+2025-03-27 13:58:02,576 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:58:02,598 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:58:02,850 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:58:02,851 - main - INFO - Initializing HardwareService
+2025-03-27 13:58:02,851 - main - INFO - Initializing SoftwareService
+2025-03-27 13:58:05,010 - main - INFO - Initializing AWSClient
+2025-03-27 13:58:05,010 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:58:05,028 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:58:05,229 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:58:05,229 - main - INFO - Initializing HardwareService
+2025-03-27 13:58:05,230 - main - INFO - Initializing SoftwareService
+2025-03-27 13:58:07,303 - main - INFO - Initializing AWSClient
+2025-03-27 13:58:07,303 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:58:07,319 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:58:07,510 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:58:07,510 - main - INFO - Initializing HardwareService
+2025-03-27 13:58:07,511 - main - INFO - Initializing SoftwareService

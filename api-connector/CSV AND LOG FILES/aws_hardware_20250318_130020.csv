@@ -1,0 +1,5 @@
+InstanceId,Name,HostName,HostType,SerialNumber,State,CPUCores,ThreadsPerCore,TotalVCPUs,RAM,HardDiskSize,PublicIP,PrivateIP,VPC,Platform
+i-09dcf09783e4035ca,AL2,ip-172-31-41-219.eu-north-1.compute.internal,t3.micro,ec21340e-f3b9-3e98-41c3-7c0c9eca8ddf,running,1,2,2,Unknown,8 GB,13.60.35.25,172.31.41.219,vpc-04210ae2d52ad65ad,Linux/UNIX
+i-0565792e7ed00a2ab,AL2.0,ip-172-31-47-210.eu-north-1.compute.internal,t3.micro,ec296f10-7232-d7b8-19fd-442d7dcdc469,running,1,2,2,Unknown,8 GB,13.53.39.68,172.31.47.210,vpc-04210ae2d52ad65ad,Linux/UNIX
+i-0ec5b01b33b811911,AL2.0,AL2.0,t3.micro,i-3b811911,terminated,1,2,2,Unknown,N/A,N/A,N/A,N/A,Linux/UNIX
+i-04b55dc18d77a985a,windows,windows,t3.micro,i-d77a985a,running,1,2,2,Unknown,30 GB,13.51.174.8,172.31.27.39,vpc-04210ae2d52ad65ad,windows

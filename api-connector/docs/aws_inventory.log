@@ -1,0 +1,6 @@
+2025-03-27 13:46:07,784 - main - INFO - Initializing AWSClient
+2025-03-27 13:46:07,784 - main - INFO - Attempting to initialize AWS EC2 and SSM clients
+2025-03-27 13:46:07,800 - botocore.credentials - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2025-03-27 13:46:08,131 - main - INFO - Successfully initialized AWS clients
+2025-03-27 13:46:08,132 - main - INFO - Initializing HardwareService
+2025-03-27 13:46:08,132 - main - INFO - Initializing SoftwareService
